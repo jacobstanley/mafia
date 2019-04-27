@@ -675,7 +675,7 @@ ghciArgs :: Directory -> [GhciInclude] -> [File] -> EitherT MafiaError IO [Argum
 ghciArgs wdir extraIncludes paths = do
   mapM_ checkEntryPoint paths
 
-  standard <- mapM (tryMakeRelativeToCurrent . (wdir </>)) standardSourceDirs
+  standard <- mapM (canonicalizePath . (wdir </>)) standardSourceDirs
   extras <- concat <$> mapM (reifyInclude wdir) extraIncludes
 
   let
@@ -684,7 +684,7 @@ ghciArgs wdir extraIncludes paths = do
 
   headers <- getHeaders
   includes <- catMaybes <$> mapM ensureDirectory dirs
-  databases <- mapM tryMakeRelativeToCurrent =<< getPackageDatabases wdir
+  databases <- mapM canonicalizePath =<< getPackageDatabases wdir
 
   return $ mconcat [
       [ "-no-user-package-db" ]
@@ -736,13 +736,13 @@ reifyInclude wdir = \case
     dirs <- firstT MafiaGitError . withDirectory wdir $
       mapM canonicalizePath =<< fmap Set.toList getProjectSources
 
-    concatMap appendStandardDirs <$> mapM tryMakeRelativeToCurrent dirs
+    concatMap appendStandardDirs <$> mapM canonicalizePath dirs
 
   AllLibraries -> do
     dirs <- firstT MafiaSubmoduleError . withDirectory wdir $
       mapM canonicalizePath =<< fmap Set.toList getAvailableSources
 
-    concatMap appendStandardDirs <$> mapM tryMakeRelativeToCurrent dirs
+    concatMap appendStandardDirs <$> mapM canonicalizePath dirs
 
 appendStandardDirs :: Directory -> [Directory]
 appendStandardDirs dir =
